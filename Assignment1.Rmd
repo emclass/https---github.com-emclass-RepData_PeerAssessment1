@@ -1,0 +1,166 @@
+---
+title: "Assignment1"
+author: "Erik McCullen"
+date: "Sunday, November 16, 2014"
+output: html_document
+---
+
+The assignment is broken down into four sections.
+
+First Section - total steps per day
+
+
+1. What is the total number of steps taken per day and plot?
+
+code for this section:
+```{r, echo=TRUE}
+#Erik McCullen
+#Reproducible research, assignment 1 code
+
+#load in data, assuming it is in current working directory
+alldata<-read.table("activity.csv",sep=",",na.strings="NA",header=TRUE)
+cleandata<-na.omit(alldata) #data omitting NA's
+
+#load libraries needed
+library(plyr)
+library(ggplot2)
+library(reshape2)
+library(reshape)
+library(lubridate)
+
+#Part one--mean total number of steps
+
+#calculate total steps taken per day; omitting days with no steps
+#or missing data
+p<-melt(cleandata,id=c("date","interval"))
+dailysteps<-acast(p,date~variable,sum) #total steps per day
+days<-as.Date(row.names(dailysteps)) #days
+plot(days,dailysteps,type="h",lwd=5,col="red",ylab="total steps per day",xlab="day")
+              
+
+```
+
+
+2. Mean and median total steps per day?
+
+```{r,echo=TRUE}
+#calculate mean and median daily steps taken              
+meandailysteps<-acast(p,date~variable,mean)
+#meddailysteps<-acast(p,date~variable,median)
+              
+
+plot(days,meandailysteps)
+
+```
+
+Second Section - average daily activity pattern
+
+1. time series plot of the 5 minute intervals
+
+```{r,echo=TRUE}
+#Part two--average daily activity pattern
+
+#average of the 5-minute intervals across all days
+intervalavg<-acast(p,interval~variable,mean)
+int<-seq(1:288) # sequence of 5min intervals in 24 hour period
+plot(int,intervalavg,type="l",xlab="5 min intervals in 24 hours",ylab="average number of steps")
+
+```
+
+2. maximum 5 minute interval? 
+
+```{r,echo=TRUE}
+maxinterval<-which.max(intervalavg) # index of maximum steps in 5 min intervals
+
+```
+The 104th interval is the maximum. This would correspond to 8:40 am
+
+
+Third Section - inputing missing values
+
+1. Total number of rows with missing data:
+
+```{r,echo=TRUE}
+#total number of rows with missing data (NA's)
+missingdat<-nrow(alldata)-nrow(cleandata)
+
+```
+The total number of missing rows is 2304
+
+2 & 3. Strategy for missing values? I decided to replace the missing values with the equivalent 5 minute interval average calculated above. Te code to create the new dataset with these missing values is:
+
+
+```{r,echo=TRUE}
+newdata<-alldata
+
+#replacing NA's with the equivalent 5 min interval average across all
+#days, intervalavg
+
+for(i in 0:60){
+        
+        for(j in 1:288){
+                if (is.na(alldata$steps[j+(288*i)])==TRUE) {
+                        newdata$steps[j+(288*i)]<-intervalavg[j]}
+                else{}
+        }
+}
+
+```
+
+4. Plot the total steps per day from this new dataset and the average. Comparing the graphs from the original dataset to this dataset does not show any drastic difference in the overall shape; the data is just more filled in (complete).
+
+```{r,echo=TRUE}
+#now calculate total daily steps, and mean as in first part, but using
+#newdata that has had the NA's replaced
+
+#calculate total steps taken per day; omitting days with no steps
+#or missing data
+p2<-melt(newdata,id=c("date","interval"))
+dailystepsnew<-acast(p2,date~variable,sum) #total steps per day
+days<-as.Date(row.names(dailystepsnew)) #days
+plot(days,dailystepsnew,type="h",lwd=5,col="red",ylab="total steps per day",xlab="day")
+
+```
+The average and median can now be calculated:
+
+```{r,echo=TRUE}
+
+#calculate mean and median daily steps taken of this new data              
+meandailystepsnew<-acast(p2,date~variable,mean)
+meddailystepsnew<-acast(p2,date~variable,median)
+
+```
+
+Fourth Section - weekday vs. weekend activity patterns
+
+1 & 2. The code to examine the difference in activity patterns between the weekday and weekend is given below:
+
+```{r,echo=TRUE}
+#last section: weekday/weekend differences
+days<-as.Date(newdata$date)
+day<-wday(days)
+
+#using for loop to set weekdays and weekends
+for(i in 1:nrow(newdata)){
+        if(day[i]==1 | day[i]==7){day[i]<-c("weekend")}
+                else {day[i]<-c("weekday")}
+}
+newdata<-cbind(newdata,day)
+
+#subset all the data into weekend and weekday
+pwend<-newdata[newdata$day=="weekend",]
+pwday<-newdata[newdata$day=="weekday",]
+
+#now get average of 5 min intervals
+pwend2<-melt(pwend,id=c("date","interval","day"))
+pwday2<-melt(pwday,id=c("date","interval","day"))
+
+intervalavgwend<-acast(pwend2,interval~variable,mean)
+intervalavgwday<-acast(pwday2,interval~variable,mean)
+
+par(mfrow=c(2,1))
+plot(int,intervalavgwday,type="l",xlab="5 min intervals in 24hours",ylab="average steps",main="weekday interval average")
+plot(int,intervalavgwend,type="l",xlab="5 min intervals in 24hours",ylab="average steps",main="weekend interval average")
+
+```
+
